@@ -7,3 +7,5 @@
 .bubble ul{margin:10px 0 16px;padding-left:22px}.bubble li{padding-left:3px;margin:5px 0}
 
 .activity-label{display:block;font-size:12px;color:#546984;margin:14px 0 7px}.activity-select{display:block;width:100%;max-width:100%;min-width:0;min-height:46px;border:1px solid #91a6c4;border-radius:8px;background:#edf2f9;color:#263952;padding:11px 34px 11px 12px;font:inherit;font-size:14px;text-overflow:ellipsis}.activity-select:focus{outline:2px solid #4d78b9;outline-offset:2px}.activity-select:disabled{opacity:1;color:#536681;background:#e8edf4;border-color:#c3cfdf}
+
+#reportFrame{width:100%;flex:1;min-height:0;border:0;background:#dce2ea}#pdfDialog{width:min(1120px,96vw);height:94dvh}.file-card small{line-height:1.5}

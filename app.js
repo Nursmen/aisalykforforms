@@ -22,6 +22,7 @@ const activities = [
   'Субъект, осуществляющий деятельность вне территории Кыргызской Республики'
 ];
 let chosen = [0, 3];
+let incomeAmounts=[1250000,350000], awaitingApproval=false, previewOpened=false;
 function activityPicker(second=false){return `<p>${second?'Какую ещё деятельность добавим?':'Выберите вид деятельности за этот квартал.'}</p><label class="activity-label" for="activity-${second?1:0}">Вид деятельности</label><select class="activity-select" id="activity-${second?1:0}" data-activity="${second?1:0}"><option value="" disabled selected>Выберите из списка…</option>${activities.map((name,i)=>`<option value="${i}"${second&&i===chosen[0]?' disabled':''}>${name}</option>`).join('')}</select>`;}
 const replies = [
   'привет, помоги мне заполнить налоговый отчёт',
@@ -41,7 +42,7 @@ const replies = [
 ];
 const answers = [
   '<p>Помогу. По вашей форме 025 зарегистрированы:</p><ul><li>налог с продаж;</li><li>НДС;</li><li>налог на прибыль;</li><li>подоходный налог.</li></ul><p>По какому налогу заполним отчёт? Можно выбрать и другой.</p>',
-  'Нашёл последний отчёт по Единому налогу. Перенесу из него данные плательщика.<br><br>За какой квартал и год заполним отчёт? Можно выбрать и прошлый период.',
+  'Нашёл последний отчёт по Единому налогу. Теперь можем использовать его, чтобы помочь вам заполнить новый отчёт.<br><br>За какой квартал и год заполним отчёт? Можно выбрать и прошлый период.',
   'За I квартал 2026 года есть несколько вариантов отчёта. Какой вам нужен: для малого предпринимательства или для субъектов лотерейной деятельности?',
   'Выбрана форма для малого предпринимательства. Использую последнюю действующую редакцию для I квартала 2026 года.<br><br>За этот период уже есть отчёт. Уточним его или создадим первоначальный?',
   `<p>Создам новый первоначальный отчёт. Данные плательщика перенёс, период заполнил. Проверьте, всё верно?</p><div class="data-grid"><div><span>ИНН</span><b>02501201810018</b></div><div><span>Плательщик</span><b>ОсОО «ТРАНС КАРГО КЕЙ ДЖИ»</b></div><div><span>Налоговый орган</span><b>003 — Свердловский р-н</b></div><div><span>Телефон</span><b>0442162, 0550 320588</b></div><div><span>Период</span><b>I квартал 2026</b><small>01.01.2026 — 31.03.2026</small></div><div><span>Тип отчёта</span><b>Первоначальный</b></div></div>`,
@@ -53,18 +54,24 @@ const answers = [
   '',
   'Добавил ещё 350 000 сом. Есть другие виды деятельности?',
   'Готово, в отчёте две деятельности. Общая выручка — 1 600 000 сом. Посмотрим отчёт?',
-  '<p>Вот ваш отчёт.</p><a href="report.pdf" class="file-card" data-report><span class="file-icon">PDF</span><span>Единый налог<small>I квартал 2026 · образец</small></span></a>'
+  '<p>Вот ваш отчёт.</p><a href="report.html" class="file-card" data-report><span class="file-icon">PDF</span><span>Единый налог<small>I квартал 2026 · первоначальный</small></span></a>'
 ];
 function scroll(){requestAnimationFrame(()=>{const c=$('#conversation');c.scrollTo({top:c.scrollHeight,behavior:'smooth'});});}
 function add(text,user=false){const el=document.createElement('article');el.className='message'+(user?' user':'');el.innerHTML=`${user?'':'<span class="avatar">✦</span>'}<div class="message-body"><div class="message-name">${user?'Вы':'АйСалык'}</div><div class="bubble">${text}</div></div>`;$('#conversation').append(el);scroll();return el;}
 function update(){ $('#modeButton').classList.toggle('enabled',mode);$('#modeButton').setAttribute('aria-pressed',String(mode));$('#modeButton').disabled=busy;$('#chatTitle').textContent=mode?'Заполнение отчёта':'Суперчат';$('#messageInput').placeholder=busy?'Можно уже написать ответ…':'Напишите что-нибудь…';$('.send').disabled=busy;}
 function welcome(){ $('#conversation').innerHTML='<div class="welcome"><span class="welcome-icon">✦</span><h1>Новый диалог</h1><p>Напишите сообщение, чтобы начать</p></div>'; }
 function start(){mode=true;if(saved){$('#conversation').innerHTML=saved;saved='';}else{welcome();}update();scroll();}
-function reset(){generation++;chosen=[0,3];step=0;busy=false;mode=false;saved='';$('#messageInput').value='';welcome();update();}
+function reset(){generation++;awaitingApproval=false;previewOpened=false;incomeAmounts=[1250000,350000];sessionStorage.removeItem('aisalyk-chat');chosen=[0,3];step=0;busy=false;mode=false;saved='';$('#messageInput').value='';welcome();update();}
 function toggle(){if(busy)return;if(!mode){start();return;}document.querySelectorAll('.activity-select').forEach(x=>[...x.options].forEach(o=>o.toggleAttribute('selected',o.selected)));saved=$('#conversation').innerHTML;mode=false;welcome();update();}
-function openReport(){if(!$('#pdfDialog').open)$('#pdfDialog').showModal();}
-async function advance(instant=false){
+function draftData(){return {id:'aisalyk-091-2026-q1',status:'Черновик',entries:chosen.map((index,i)=>({index,name:activities[index],income:incomeAmounts[i]}))};}
+function openReport(edit=false){sessionStorage.setItem('aisalyk-draft',JSON.stringify(draftData()));$('#reportFrame').src='report.html'+(edit?'?edit=1':'');previewOpened=true;if(!$('#pdfDialog').open)$('#pdfDialog').showModal();}
+async function askApproval(){if(!previewOpened||busy)return;previewOpened=false;const token=generation;try{const draft=JSON.parse(sessionStorage.getItem('aisalyk-draft'));if(draft?.entries?.length===2)incomeAmounts=draft.entries.map(e=>e.income);}catch{}busy=true;update();const pending=add('<span class="scan"><span class="spinner"></span>Думаю…</span>');await new Promise(r=>setTimeout(r,800));if(token!==generation)return;pending.querySelector('.bubble').innerHTML='Всё верно, отчёт подходит? Сохраним его в журнале?';awaitingApproval=true;busy=false;update();scroll();}
+async function approveReport(raw){if(/(?:^|\s)(?:нет|не|неа)(?=\s|[,.!?]|$)|исправ|поправ|ошиб/i.test(raw)){add('не, давай суммы поправим',true);awaitingApproval=false;add('Можно изменить выручку прямо над бланком. После этого посмотрим ещё раз.');openReport(true);return;}
+add('да, всё подходит, сохраняй',true);busy=true;update();const token=generation;const pending=add('<span class="scan"><span class="spinner"></span>Сохраняю отчёт…</span>');await new Promise(r=>setTimeout(r,900));if(token!==generation)return;const report=draftData();report.status='Ожидает отправки';report.time=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});sessionStorage.setItem('aisalyk-saved-report',JSON.stringify(report));pending.querySelector('.bubble').innerHTML='Отчёт сохранён. Открываю журнал.';busy=false;awaitingApproval=false;update();sessionStorage.setItem('aisalyk-chat',JSON.stringify({html:$('#conversation').innerHTML,step,chosen,incomeAmounts,mode}));location.href='journal.html';}
+$('#pdfDialog').addEventListener('close',askApproval);
+async function advance(instant=false,raw=''){
   if(busy)return;
+  if(awaitingApproval){await approveReport(raw);return;}
   if(!mode)start();
   if(step>=replies.length){add('давай ещё раз посмотрим',true);openReport();return;}
   $('.welcome')?.remove();
@@ -85,7 +92,7 @@ async function advance(instant=false){
   add(reply,true);
   busy=true;update();
   const pending=add(`<span class="scan"><span class="spinner"></span>${current===1?'Проверяю последний отчёт…':'Думаю…'}</span>`);
-  if(!instant)await new Promise(r=>setTimeout(r,current===1?3800:2400));
+  if(!instant)await new Promise(r=>setTimeout(r,current===1?5700:1200));
   if(token!==generation)return;
   pending.querySelector('.bubble').innerHTML=answer;
   busy=false;update();scroll();
@@ -96,9 +103,11 @@ async function demo(){reset();start();for(let i=0;i<replies.length;i++)await adv
 $('#modeButton').onclick=toggle;
 $('#newChat').onclick=reset;
 $('#demoHistory').onclick=demo;
-$('#messageForm').onsubmit=e=>{e.preventDefault();if(busy||!$('#messageInput').value.trim())return;$('#messageInput').value='';advance();};
+$('#messageForm').onsubmit=e=>{e.preventDefault();if(busy||!$('#messageInput').value.trim())return;const raw=$('#messageInput').value.trim();$('#messageInput').value='';advance(false,raw);};
 document.addEventListener('change',e=>{if(e.target.matches('.activity-select')&&!busy){advance();}});
 $('#closePdf').onclick=()=>$('#pdfDialog').close();
 document.addEventListener('click',e=>{if(e.target.closest('[data-report]')){e.preventDefault();openReport();}});
 $('#pdfDialog').addEventListener('click',e=>{if(e.target===$('#pdfDialog'))$('#pdfDialog').close();});
-reset();
+let restored=false;
+try{const previous=JSON.parse(sessionStorage.getItem('aisalyk-chat'));if(previous){step=previous.step;chosen=previous.chosen;incomeAmounts=previous.incomeAmounts;mode=previous.mode;$('#conversation').innerHTML=previous.html;update();scroll();restored=true;}}catch{}
+if(!restored)reset();
